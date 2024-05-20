@@ -1082,57 +1082,32 @@ if __name__ == '__main__':
     # can try connect_senxor(src='/dev/ttyS3') or similar if default cannot be found
     mi48, connected_port, port_names = connect_senxor()
     ncols, nrows = mi48.fpa_shape
-
+    print(f"ncols, nrows: {ncols, nrows}")
     # print out camera info
     camera_info = mi48.get_camera_info()
     logger.info('Camera info:')
     logger.info(camera_info)
 
     # set desired FPS
-    if len(sys.argv) == 2:
-        STREAM_FPS = int(sys.argv[1])
-    else:
-        STREAM_FPS = args.FPS_Divisor
-    # mi48.set_fps(STREAM_FPS)
+    # if len(sys.argv) == 2:
+    #     STREAM_FPS = int(sys.argv[1])
+    # else:
+    #     STREAM_FPS = args.FPS_Divisor
+    # # mi48.set_fps(STREAM_FPS)
 
-    # ensure we use max fps, regardless of the internal processing within the MI48
-    mi48.set_frame_rate(STREAM_FPS)
+    # # ensure we use max fps, regardless of the internal processing within the MI48
+    # # mi48.set_frame_rate(STREAM_FPS)
 
+    mi48.regwrite(0xB4, 0x03)
     # see if filtering is available in MI48 and set it up
-    # kalman_Strength = args.firmware_Kalman_strength
-    # mi48.disable_filter(f1=True, f2=True, f3=True)
-    # mi48.enable_filter(f1=args.firmware_Kalman, f2=args.use_STARK, f3=False, f3_ks_5=args.STARK_cuttoff)
-    # mi48.set_filter_1(kalman_Strength)
-    # mi48.set_filter_2(args.STARK_gradient)
+    mi48.regwrite(0xD0, 0x00)   # disable temporal filter
+    # mi48.regwrite(0x20, 0x00)   # disable STARK filter
+    mi48.regwrite(0x30, 0x00)   # disable median filter
+    mi48.regwrite(0x25, 0x00)   # disable MMS
+    mi48.set_sens_factor(95)
+    mi48.set_offset_corr(1.5)
+    mi48.set_emissivity(97)
 
-    if ncols != 160:
-        val = 0x00
-        if args.use_STARK:
-            val += 0x04
-        if args.firmware_Kalman:
-            val += 0x03
-        if args.use_firmware_median:
-            val += 0x40
-        mi48.regwrite(0xD0, val)
-        mi48.regwrite(0xD1, args.firmware_Kalman_strength)
-        mi48.regwrite(0x20, 0x01) # use stark
-        mi48.regwrite(0x25, 0x00) # no MMS
-        # mi48.regwrite(0xD3, args.STARK_gradient)
-        # mi48.regwrite(0xD9, args.STARK_cuttoff)
-
-    else:
-        val = 0x00
-        if args.use_STARK:
-            val += 0x04
-        if args.firmware_Kalman:
-            val += 0x03
-        if args.use_firmware_median:
-            val += 0x40
-        mi48.regwrite(0xD0, 0x00)
-        mi48.regwrite(0xD1, 0x00)
-        mi48.regwrite(0x20, 0x00)
-        mi48.regwrite(0x30, 0x00)
-        mi48.regwrite(0x25, 0x00)   # disable MMS
 
     # Ensure sensitivity enhancement factor is 1. (e.g. sensitivity is as obtained during calibration)
     # mi48.set_distance_corr(0x64)
@@ -1154,7 +1129,7 @@ if __name__ == '__main__':
     data = data_to_frame(data, (ncols, nrows), hflip=False)[:,:-40]
 
     # Initialize YOLOv7_face object detector
-    YOLOv7_face_detector = YOLOv7_face(os.path.join('.\model_stack',args.modelpath), conf_thres=args.confThreshold, iou_thres=args.nmsThreshold,
+    YOLOv7_face_detector = YOLOv7_face(args.modelpath, conf_thres=args.confThreshold, iou_thres=args.nmsThreshold,
                                        which_run=args.which_run, num_classes=args.num_classes, use_kpts=args.use_kpts,
                                        shape=args.input_shape)
     print(f"which_run param: {YOLOv7_face_detector.which_run}")
